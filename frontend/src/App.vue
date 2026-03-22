@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { RouterView } from 'vue-router'
 
 import SessionExpirationModal from './components/SessionExpirationModal.vue'
-import { getAuthSession, getRemainingSessionMs, isAuthenticated } from './services/authStorage'
+import { getRemainingSessionMs, isAuthenticated } from './services/authStorage'
 import { logoutSesion, refreshSesion } from './services/authService'
 
 const route = useRoute()
@@ -12,6 +12,7 @@ const router = useRouter()
 
 const sessionModalVisible = ref(false)
 const extendingSession = ref(false)
+const refreshingSilently = ref(false)
 const idleTimerId = ref(null)
 const warningTimerId = ref(null)
 
@@ -45,12 +46,36 @@ function addActivityListeners() {
   }
 }
 
-async function closeSessionAndRedirect() {
+async function closeSessionAndRedirect(expiradaPorInactividad = false) {
   clearTimers()
   sessionModalVisible.value = false
   removeActivityListeners()
   await logoutSesion()
-  router.push('/login')
+  router.push({
+    path: '/login',
+    query: expiradaPorInactividad ? { sesionExpirada: '1' } : {},
+  })
+}
+
+async function refreshSessionSilently() {
+  if (refreshingSilently.value) {
+    return
+  }
+
+  refreshingSilently.value = true
+
+  try {
+    await refreshSesion()
+  } catch {
+    await closeSessionAndRedirect(false)
+    return
+  } finally {
+    refreshingSilently.value = false
+  }
+
+  if (shouldTrackSession.value && !sessionModalVisible.value) {
+    resetSessionTimers()
+  }
 }
 
 function resetSessionTimers() {
@@ -65,16 +90,21 @@ function resetSessionTimers() {
   clearTimers()
   sessionModalVisible.value = false
 
-  const session = getAuthSession()
   const totalInactividadMs = minutosInactividad * 60 * 1000
-  const remainingTokenMs = getRemainingSessionMs(session)
+  const remainingTokenMs = getRemainingSessionMs()
+  const umbralRenovacionMs = 30 * 1000
 
   if (remainingTokenMs <= 0) {
     closeSessionAndRedirect()
     return
   }
 
-  const totalMs = Math.min(totalInactividadMs, remainingTokenMs)
+  if (remainingTokenMs <= umbralRenovacionMs) {
+    refreshSessionSilently()
+    return
+  }
+
+  const totalMs = totalInactividadMs
   const avisoConfiguradoMs = minutosAviso * 60 * 1000
   const warningLeadMs = Math.min(avisoConfiguradoMs, Math.max(totalMs - 1_000, 0))
   const warningMs = Math.max(totalMs - warningLeadMs, 0)
@@ -85,7 +115,7 @@ function resetSessionTimers() {
   }, warningMs)
 
   idleTimerId.value = window.setTimeout(() => {
-    closeSessionAndRedirect()
+    closeSessionAndRedirect(true)
   }, totalMs)
 }
 
@@ -98,7 +128,7 @@ async function extendSession() {
     addActivityListeners()
     resetSessionTimers()
   } catch {
-    await closeSessionAndRedirect()
+    await closeSessionAndRedirect(true)
   } finally {
     extendingSession.value = false
   }
@@ -138,6 +168,6 @@ onBeforeUnmount(() => {
     :visible="sessionModalVisible"
     :extending="extendingSession"
     @extend="extendSession"
-    @close-session="closeSessionAndRedirect"
+    @close-session="() => closeSessionAndRedirect(false)"
   />
 </template>

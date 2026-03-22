@@ -924,6 +924,13 @@ a {
   accent-color: var(--editorial-green);
 }
 
+.login-forgot-link {
+  align-self: flex-end;
+  color: var(--editorial-green);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .login-submit {
   border: none;
   border-radius: 0.95rem;

@@ -240,7 +240,6 @@ function closeBlockedAccountNotice() {
             <div class="login-field">
               <div class="login-field-header">
                 <label for="password">Contraseña</label>
-                <a href="#">¿Olvidaste tu contraseña?</a>
               </div>
               <div class="login-password-wrap">
                 <input
@@ -255,10 +254,7 @@ function closeBlockedAccountNotice() {
               </div>
             </div>
 
-            <label class="login-checkbox">
-              <input type="checkbox" />
-              <span>Mantener sesion iniciada por 30 dias</span>
-            </label>
+            <a href="#" class="login-forgot-link">¿Olvidaste tu contraseña?</a>
 
             <p v-if="errorMessage" class="login-error-message">{{ errorMessage }}</p>
 
@@ -266,11 +262,6 @@ function closeBlockedAccountNotice() {
               {{ loading ? 'Validando...' : 'Entrar a la cuenta' }}
             </button>
           </form>
-
-          <p class="login-footer-text">
-            No tienes una cuenta?
-            <a href="#">Crear cuenta</a>
-          </p>
         </div>
 
         <footer class="login-links">
